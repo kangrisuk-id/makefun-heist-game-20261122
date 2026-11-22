@@ -156,41 +156,123 @@ export function exitUnlocked(state) {
 }
 
 // ---------------------------------------------------------------------------
-// Static layer pre-render: marble floor, gold trim, carpets, cover, lamps.
+// Static layer pre-render: one palette per floor — Floor 1 is a bright
+// white-gold marble lobby, Floor 2 a dark wood office with warm lamps,
+// Floor 3 cold blue steel shot through with gold. Dressing (palms, rope
+// barriers, sconces, floor medallions, contents inside the cases) is all
+// painted here, along walls and edges only, so the frame loop stays cheap.
 // ---------------------------------------------------------------------------
 
-function drawMarble(ctx, w, h) {
-  ctx.fillStyle = '#23202e';
+const PALETTES = [
+  { // Floor 1 — bright white-gold marble
+    tiles: ['#d9d3c1', '#cfc8b2', '#e3ddcb', '#d2cab6'],
+    grout: 'rgba(122,102,58,0.40)',
+    detail: 'veins',
+    carpet: '#7d1a2b', carpetIn: '#902434',
+    pool: 'rgba(255,196,86,0.26)',
+    outer: '#3b362a', wall: '#57503e', wallTop: '#6b6350',
+    pillar: ['#f2ecda', '#cfc7ac', '#a29a80'],
+    caseBase: '#6b5724',
+  },
+  { // Floor 2 — dark wood, warm desk lamps
+    tiles: ['#503722', '#48301d', '#573b23', '#422b18'],
+    grout: 'rgba(16,8,3,0.55)',
+    detail: 'planks',
+    carpet: '#274435', carpetIn: '#2f5240',
+    pool: 'rgba(255,166,66,0.30)',
+    outer: '#241708', wall: '#3a2812', wallTop: '#4c3519',
+    pillar: ['#7d5c33', '#54391d', '#38250f'],
+    caseBase: '#2e1f0e',
+  },
+  { // Floor 3 — cold blue steel, glowing gold
+    tiles: ['#33465e', '#2d3f54', '#394e66', '#2b3b4f'],
+    grout: 'rgba(140,180,220,0.22)',
+    detail: 'rivets',
+    carpet: '#1e3a5f', carpetIn: '#254a77',
+    pool: 'rgba(160,195,255,0.20)',
+    outer: '#131e2b', wall: '#22344a', wallTop: '#2d435c',
+    pillar: ['#7d94b0', '#4c617a', '#2e4157'],
+    caseBase: '#1d2c3f',
+  },
+];
+
+function drawMarble(ctx, w, h, pal) {
+  ctx.fillStyle = pal.tiles[1];
   ctx.fillRect(0, 0, w, h);
   const tile = 68;
   for (let y = 0; y < h / tile; y++) {
     for (let x = 0; x < w / tile; x++) {
-      const shade = 30 + ((x * 7 + y * 13) % 5) * 3;
-      ctx.fillStyle = `rgb(${shade + 6},${shade + 2},${shade + 16})`;
+      ctx.fillStyle = pal.tiles[(x * 7 + y * 13) % pal.tiles.length];
       ctx.fillRect(x * tile + 1, y * tile + 1, tile - 2, tile - 2);
+      if (pal.detail === 'planks') { // wood grain: plank seams + streaks
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(x * tile + 1, y * tile + tile / 2, tile - 2, 1.5);
+        ctx.fillStyle = 'rgba(255,214,150,0.07)';
+        ctx.fillRect(x * tile + 6, y * tile + 9 + ((x * 5 + y) % 4) * 3, tile - 16, 2);
+        ctx.fillRect(x * tile + 10, y * tile + tile / 2 + 8, tile - 24, 2);
+      }
+      if (pal.detail === 'rivets') { // steel plate corners
+        ctx.fillStyle = 'rgba(190,215,245,0.5)';
+        for (const [rx, ry] of [[7, 7], [tile - 9, 7], [7, tile - 9], [tile - 9, tile - 9]]) {
+          ctx.beginPath();
+          ctx.arc(x * tile + rx, y * tile + ry, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
   }
-  ctx.strokeStyle = 'rgba(212,175,55,0.16)';
+  ctx.strokeStyle = pal.grout;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let i = 0; i < 26; i++) { // faint gold veins, fixed pattern
-    const x = (i * 173) % w;
-    const y = (i * 289) % h;
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 34 - (i % 5) * 9, y + 22 + (i % 3) * 11);
-  }
+  for (let gx = 0; gx <= w; gx += tile) { ctx.moveTo(gx, 0); ctx.lineTo(gx, h); }
+  for (let gy = 0; gy <= h; gy += tile) { ctx.moveTo(0, gy); ctx.lineTo(w, gy); }
   ctx.stroke();
+  if (pal.detail === 'veins') {
+    ctx.strokeStyle = 'rgba(178,138,40,0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < 30; i++) { // gold veins, fixed pattern
+      const x = (i * 173) % w;
+      const y = (i * 289) % h;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 34 - (i % 5) * 9, y + 22 + (i % 3) * 11);
+    }
+    ctx.stroke();
+  }
 }
 
-function drawCoverPiece(ctx, r) {
+function drawCaseContents(ctx, r) {
+  // A faint silhouette behind the glass, varied per case: vase, bars, bust.
+  const cx = r.x + r.w / 2;
+  const cy = r.y + r.h / 2;
+  const kind = Math.abs(Math.round(r.x + r.y)) % 3;
+  ctx.fillStyle = 'rgba(16,12,6,0.5)';
+  if (kind === 0) { // vase
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 3, 7, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 2.6, cy - 12, 5.2, 6);
+  } else if (kind === 1) { // stacked bars
+    ctx.fillRect(cx - 13, cy + 1, 12, 6);
+    ctx.fillRect(cx + 1, cy + 1, 12, 6);
+    ctx.fillRect(cx - 6, cy - 6, 12, 6);
+  } else { // bust on a plinth
+    ctx.beginPath();
+    ctx.arc(cx, cy - 4, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 7, cy + 2, 14, 8);
+  }
+}
+
+function drawCoverPiece(ctx, r, pal) {
   if (r.kind === 'pillar') {
     const cx = r.x + r.w / 2;
     const cy = r.y + r.h / 2;
     const rad = r.w / 2;
     const g = ctx.createRadialGradient(cx - 7, cy - 7, 4, cx, cy, rad);
-    g.addColorStop(0, '#8f8fa8');
-    g.addColorStop(0.7, '#55556e');
-    g.addColorStop(1, '#33334a');
+    g.addColorStop(0, pal.pillar[0]);
+    g.addColorStop(0.7, pal.pillar[1]);
+    g.addColorStop(1, pal.pillar[2]);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(cx, cy, rad, 0, Math.PI * 2);
@@ -203,10 +285,11 @@ function drawCoverPiece(ctx, r) {
     return;
   }
   if (r.kind === 'case') {
-    ctx.fillStyle = '#3d2f16';
+    ctx.fillStyle = pal.caseBase;
     ctx.fillRect(r.x, r.y, r.w, r.h);
     ctx.fillStyle = 'rgba(170,220,255,0.20)';
     ctx.fillRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10);
+    drawCaseContents(ctx, r);
     ctx.strokeStyle = '#d4af37';
     ctx.lineWidth = 2.5;
     ctx.strokeRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2);
@@ -219,13 +302,143 @@ function drawCoverPiece(ctx, r) {
     return;
   }
   // plain wall block
-  ctx.fillStyle = '#3a3652';
+  ctx.fillStyle = pal.wall;
   ctx.fillRect(r.x, r.y, r.w, r.h);
-  ctx.fillStyle = '#494468';
+  ctx.fillStyle = pal.wallTop;
   ctx.fillRect(r.x, r.y, r.w, 5);
   ctx.strokeStyle = 'rgba(212,175,55,0.5)';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+}
+
+// --- dressing: palms, rope barriers, sconces, medallions -------------------
+
+function drawPalm(ctx, x, y) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 13, 17, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8a4b21'; // terracotta pot with a gold band
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y + 2);
+  ctx.lineTo(x + 10, y + 2);
+  ctx.lineTo(x + 7, y + 15);
+  ctx.lineTo(x - 7, y + 15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#d4af37';
+  ctx.fillRect(x - 10, y + 2, 20, 3);
+  ctx.strokeStyle = '#5d4020';
+  ctx.lineWidth = 3.4;
+  ctx.beginPath();
+  ctx.moveTo(x, y + 3);
+  ctx.quadraticCurveTo(x + 2, y - 8, x, y - 13);
+  ctx.stroke();
+  for (let i = 0; i < 7; i++) { // fronds
+    const a = -Math.PI * 0.92 + (i / 6) * Math.PI * 0.84;
+    const len = 21 + (i % 3) * 4;
+    const ex = x + Math.cos(a) * len;
+    const ey = y - 13 + Math.sin(a) * len * 0.55 + 7;
+    ctx.strokeStyle = i % 2 ? '#2e7d46' : '#359654';
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 13);
+    ctx.quadraticCurveTo(x + Math.cos(a) * len * 0.55, y - 13 + Math.sin(a) * len * 0.4 - 5, ex, ey);
+    ctx.stroke();
+  }
+}
+
+function drawRopeBarrier(ctx, xs, y) {
+  for (let i = 0; i + 1 < xs.length; i++) { // sagging red velvet rope
+    const x1 = xs[i];
+    const x2 = xs[i + 1];
+    ctx.strokeStyle = '#a31621';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x1, y);
+    ctx.quadraticCurveTo((x1 + x2) / 2, y + 13, x2, y);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,120,120,0.35)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x1, y - 1.6);
+    ctx.quadraticCurveTo((x1 + x2) / 2, y + 10, x2, y - 1.6);
+    ctx.stroke();
+  }
+  for (const x of xs) { // gold posts
+    ctx.fillStyle = '#8a6a1c';
+    ctx.fillRect(x - 1.6, y - 2, 3.2, 13);
+    ctx.fillStyle = '#e9c34a';
+    ctx.beginPath();
+    ctx.arc(x, y - 4.4, 3.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8a6a1c';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 12, 6, 2.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawSconce(ctx, x, y) {
+  const g = ctx.createRadialGradient(x, y, 2, x, y, 44);
+  g.addColorStop(0, 'rgba(255,198,96,0.34)');
+  g.addColorStop(1, 'rgba(255,198,96,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, 44, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#d4af37';
+  ctx.fillRect(x - 2, y - 6, 4, 9);
+  ctx.fillStyle = '#ffd76a';
+  ctx.beginPath();
+  ctx.arc(x, y - 8, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawMedallion(ctx, x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = 'rgba(212,175,55,0.55)';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.rotate(Math.PI / 4);
+  ctx.strokeRect(-r * 0.48, -r * 0.48, r * 0.96, r * 0.96);
+  ctx.restore();
+}
+
+function drawDressing(ctx, state, pal) {
+  const idx = state.index;
+  // palms in the corners (the top-right corner stays clear of the EXIT
+  // on floors 1-2; on floor 3 the EXIT is mid-right wall, so it gets one)
+  drawPalm(ctx, 60, 62);
+  drawPalm(ctx, 60, 768);
+  drawPalm(ctx, 1028, 768);
+  if (idx === 2) drawPalm(ctx, 1028, 62);
+  // rope barrier along the bottom carpet runner, gap at the cross runner
+  drawRopeBarrier(ctx, [150, 320, 470, 620, 790, 960], 690);
+  // wall sconces on the top and bottom walls
+  for (const sx of [200, 544, 888]) {
+    drawSconce(ctx, sx, 16);
+    drawSconce(ctx, sx, FIELD.height - 16);
+  }
+  drawSconce(ctx, 16, 416);
+  drawSconce(ctx, FIELD.width - 16, 416);
+  // floor medallions in the open rooms
+  if (idx === 0) drawMedallion(ctx, 544, 416, 46);
+  if (idx === 1) {
+    drawMedallion(ctx, 160, 416, 32);
+    drawMedallion(ctx, 928, 416, 32);
+  }
+  if (idx === 2) {
+    drawMedallion(ctx, 250, 416, 30);
+    drawMedallion(ctx, 838, 416, 30);
+  }
 }
 
 /** Renders the unchanging parts of a floor to an offscreen canvas (once). */
@@ -236,24 +449,25 @@ export function buildStaticLayer(state) {
   cv.height = height;
   const ctx = cv.getContext('2d');
   const def = state.def;
+  const pal = PALETTES[state.index] ?? PALETTES[0];
 
-  drawMarble(ctx, width, height);
+  drawMarble(ctx, width, height, pal);
 
-  // Crimson carpet runners with gold edging.
+  // Carpet runners in the floor's palette, with gold edging.
   for (const [x, y, w, h] of def.carpet) {
-    ctx.fillStyle = '#6e1423';
+    ctx.fillStyle = pal.carpet;
     ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = '#7d1a2b';
+    ctx.fillStyle = pal.carpetIn;
     ctx.fillRect(x + 6, y + 6, w - 12, h - 12);
     ctx.strokeStyle = '#d4af37';
     ctx.lineWidth = 2;
     ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
   }
 
-  // Warm spotlight pools on the floor.
+  // Spotlight pools on the floor, tinted per floor.
   for (const [lx, ly] of def.lamps) {
     const g = ctx.createRadialGradient(lx, ly, 6, lx, ly, 118);
-    g.addColorStop(0, 'rgba(255,196,86,0.30)');
+    g.addColorStop(0, pal.pool);
     g.addColorStop(1, 'rgba(255,196,86,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -261,8 +475,8 @@ export function buildStaticLayer(state) {
     ctx.fill();
   }
 
-  // Outer walls: dark stone with a gold cornice line.
-  ctx.fillStyle = '#17141f';
+  // Outer walls in the floor's stone, with a gold cornice line.
+  ctx.fillStyle = pal.outer;
   ctx.fillRect(0, 0, width, WALL_T);
   ctx.fillRect(0, height - WALL_T, width, WALL_T);
   ctx.fillRect(0, 0, WALL_T, height);
@@ -273,7 +487,9 @@ export function buildStaticLayer(state) {
   ctx.fillRect(WALL_T - 3, 0, 3, height);
   ctx.fillRect(width - WALL_T, 0, 3, height);
 
-  for (const r of def.cover) drawCoverPiece(ctx, r);
+  for (const r of def.cover) drawCoverPiece(ctx, r, pal);
+
+  drawDressing(ctx, state, pal);
 
   // The EXIT getaway door.
   const e = def.exit;
