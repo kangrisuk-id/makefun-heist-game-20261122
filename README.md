@@ -1,8 +1,8 @@
 # AURUM VAULT — The Gilded Heist
 
-![make.fun entry](https://make.fun/badge/best-heist-game-20261122-0559.svg)
-![rank](https://make.fun/badge/best-heist-game-20261122-0559/kangrisuk-id/makefun-heist-game-20261122/rank.svg)
-![reward](https://make.fun/badge/best-heist-game-20261122-0559/kangrisuk-id/makefun-heist-game-20261122/reward.svg)
+[![make.fun · best-heist-game-20261122-0559](https://make.fun/badge/best-heist-game-20261122-0559.svg)](https://make.fun/bounty/best-heist-game-20261122-0559?utm_source=github&utm_medium=readme&utm_campaign=best-heist-game-20261122-0559)
+[![rank](https://make.fun/badge/best-heist-game-20261122-0559/kangrisuk-id/makefun-heist-game-20261122/rank.svg)](https://make.fun/bounty/best-heist-game-20261122-0559/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=best-heist-game-20261122-0559)
+[![reward](https://make.fun/badge/best-heist-game-20261122-0559/kangrisuk-id/makefun-heist-game-20261122/reward.svg)](https://make.fun/bounty/best-heist-game-20261122-0559?utm_source=github&utm_medium=readme&utm_campaign=best-heist-game-20261122-0559)
 
 **One thief, three gilded floors, and a fortune behind glass — lift every target treasure and vanish before the ALARM hits 100%.**
 
