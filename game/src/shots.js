@@ -42,50 +42,70 @@ export function stageStartShot() {
   return state;
 }
 
-/** Mid-heist: thief crossing the lobby, guard cone amber, camera watching. */
+/** Mid-heist on Floor 2: the thief slips through the gap between the two
+ *  laser beams while a guard's yellow cone rakes past and both CCTV
+ *  cameras sweep their red-orange cones. At t=2.8 both lasers are live. */
 export function stagePlayShot() {
-  const state = stageCommon(createFloorState(0));
+  const state = stageCommon(createFloorState(1));
   state.screen = 'play';
-  state.thief.x = 455;
-  state.thief.y = 445;
-  state.thief.facing = -2.2; // crossing toward the top-left cases
+  state.time = 2.8; // both laser phases are ON at this frozen instant
+  state.thief.x = 626;
+  state.thief.y = 416;
+  state.thief.facing = 0.35; // slipping right, through the laser gap
   state.thief.sneaking = true;
-  state.guards[0].x = 660;
-  state.guards[0].y = 128;
-  state.guards[0].facing = 2.5; // cone raking down-left across the room
-  state.guards[1].x = 800;
-  state.guards[1].y = 668;
-  state.guards[1].facing = Math.PI;
-  state.alarm = 24;
-  state.alarmPeak = 24;
-  state.score = 410;
-  state.loots[2].taken = true; // one gem already pocketed
+  state.thief.moving = true;
+  state.guards[0].x = 716;
+  state.guards[0].y = 286;
+  state.guards[0].facing = 2.75; // cone raking down-left, just missing the thief
+  state.guards[1].x = 420;
+  state.guards[1].y = 690;
+  state.guards[1].facing = 0; // cone sweeping the bottom corridor
+  state.guards[2].x = 544;
+  state.guards[2].y = 150;
+  state.guards[2].facing = Math.PI / 2; // cone down the centre, short of the thief
+  state.cameras[0].angle = 0.95;
+  state.cameras[1].angle = -2.55;
+  state.alarm = 28;
+  state.alarmPeak = 28;
+  state.score = 460;
+  state.loots[5].taken = true; // one gem already pocketed
   state.lootTaken = 1;
+  state.elapsed = 83;
   return state;
 }
 
-/** The moment it goes wrong: alarm high, guard cone red, thief bolting. */
+/** The moment it goes wrong on Floor 2: alarm at 84%, a guard's cone
+ *  locked red on the thief as he sprints the laser gap. */
 export function stageAlertShot() {
-  const state = stageCommon(createFloorState(0));
+  const state = stageCommon(createFloorState(1));
   state.screen = 'play';
-  state.thief.x = 470;
-  state.thief.y = 520;
-  state.thief.facing = 0.3; // bolting right, toward the EXIT side
+  state.time = 2.8; // both laser phases are ON at this frozen instant
+  state.thief.x = 626;
+  state.thief.y = 416;
+  state.thief.facing = 0.1; // bolting right, through the laser gap
   state.thief.sprinting = true;
-  state.guards[0].x = 660;
-  state.guards[0].y = 128;
-  state.guards[0].facing = 2.5;
-  const hot = state.guards[1];
-  hot.x = 700;
-  hot.y = 690;
-  hot.facing = -2.51; // cone locked onto the thief, clear line over open floor
+  state.thief.moving = true;
+  state.guards[0].x = 330;
+  state.guards[0].y = 150;
+  state.guards[0].facing = 0.6;
+  state.guards[1].x = 500;
+  state.guards[1].y = 690;
+  state.guards[1].facing = -0.4;
+  const hot = state.guards[2];
+  hot.x = 792;
+  hot.y = 452;
+  hot.facing = -2.93; // cone locked onto the thief, clear line over open floor
   hot.alert = 1;
   hot.seenNow = true;
+  state.cameras[0].angle = 1.1;
+  state.cameras[1].angle = -2.5;
   state.alarm = 84;
   state.alarmPeak = 84;
   state.score = 850;
-  state.loots[0].taken = true; // diamond already in the sack
-  state.lootTaken = 1;
+  state.loots[0].taken = true; // crown already in the sack
+  state.loots[3].taken = true; // and a gem
+  state.lootTaken = 2;
+  state.elapsed = 96;
   return state;
 }
 
@@ -93,6 +113,7 @@ export function stageAlertShot() {
 export function stageEndShot() {
   const state = stageCommon(createFloorState(2));
   state.screen = 'win';
+  state.doorOpen = 1; // the great vault door stands open behind the panel
   state.thief.x = 900;
   state.thief.y = 416;
   state.thief.facing = 0;
